@@ -1,35 +1,26 @@
 package database
 
 import (
-	"fmt"
-	"github.com/joho/godotenv"
+	"log"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"log"
-	"os"
+
+	"awesomeProject12/models"
 )
 
 var DB *gorm.DB
 
-func ConnectDB() {
-	err := godotenv.Load()
+func ConnectDatabase() {
+	dsn := "host=localhost user=postgres password=sultan05 dbname=car_db port=5432 sslmode=disable TimeZone=Asia/Almaty"
+	var err error
+	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatal("Не удалось подключиться к базе данных:", err)
 	}
 
-	host := os.Getenv("DB_HOST")
-	port := os.Getenv("DB_PORT")
-	user := os.Getenv("DB_USER")
-	password := os.Getenv("DB_PASSWORD")
-	dbname := os.Getenv("DB_NAME")
-
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable", host, user, password, dbname, port)
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	err = DB.AutoMigrate(&models.Car{})
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal("Ошибка миграции:", err)
 	}
-
-	DB = db
-	fmt.Println("✅ Database connected")
 }

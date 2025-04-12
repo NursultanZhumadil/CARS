@@ -6,14 +6,19 @@ import (
 )
 
 func SetupRouter() *mux.Router {
-	router := mux.NewRouter()
+	router := gin.Default()
 
-	// Машиналарға арналған маршруттар
-	router.HandleFunc("/cars", controllers.GetCars).Methods("GET")
-	router.HandleFunc("/car/{id}", controllers.GetCar).Methods("GET")
-	router.HandleFunc("/car", controllers.CreateCar).Methods("POST")
-	router.HandleFunc("/car/{id}", controllers.UpdateCar).Methods("PUT")
-	router.HandleFunc("/car/{id}", controllers.DeleteCar).Methods("DELETE")
+	router.POST("/register", controllers.Register)
+	router.POST("/login", controllers.Login)
+
+	authorized := router.Group("/")
+	authorized.Use(middleware.AuthMiddleware())
+	{
+		authorized.GET("/cars", getCars)
+		authorized.POST("/car", createCar)
+		authorized.PUT("/car/:id", updateCar)
+		authorized.DELETE("/car/:id", deleteCar)
+	}
 
 	return router
 }

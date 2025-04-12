@@ -1,87 +1,65 @@
 package controllers
 
 import (
-	"awesomeProject12/models"
-	"encoding/json"
-	"fmt"
-	"github.com/gorilla/mux"
 	"net/http"
+
+	"awesomeProject12/database"
+	"awesomeProject12/models"
+	"github.com/gin-gonic/gin"
 )
 
-var cars = []models.Car{
-	{ID: 1, Brand: "Toyota", Model: "Camry", Year: 2020, Price: 25000, Mileage: 15000},
-	{ID: 2, Brand: "BMW", Model: "X5", Year: 2018, Price: 35000, Mileage: 30000},
-}
-
-// Барлық машиналарды алу
-func GetCars(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(cars)
-}
-
-// Белгілі бір машинаны алу
-func GetCar(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	id := params["id"]
-
-	for _, item := range cars {
-		if fmt.Sprintf("%d", item.ID) == id {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(item)
-			return
-		}
+func GetCars(c *gin.Context) {
+	var cars []models.Car
+	if err := database.DB.Find(&cars).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Көліктерді жүктеу сәтсіз"})
+		return
 	}
-	http.Error(w, "Car not found", http.StatusNotFound)
+	c.JSON(http.StatusOK, cars)
 }
 
-// Жаңа машина қосу
-func CreateCar(c *gin.Context) {
+func GetCarByID(c *gin.Context) {
+	id := c.Param("id")
 	var car models.Car
-	if err := c.ShouldBindJSON(&car); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := database.DB.First(&car, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Көлік табылмады"})
 		return
 	}
-
-	if err := database.DB.Create(&car).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
 	c.JSON(http.StatusOK, car)
 }
 
-// Өнімді жаңарту
-func UpdateCar(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	id := params["id"]
-
-	var updatedCar models.Car
-	_ = json.NewDecoder(r.Body).Decode(&updatedCar)
-
-	for index, item := range cars {
-		if fmt.Sprintf("%d", item.ID) == id {
-			cars[index] = updatedCar
-			updatedCar.ID = item.ID
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(updatedCar)
-			return
-		}
+func CreateCar(c *gin.Context) {
+	var car models.Car
+	if err := c.ShouldBindJSON(&car); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Деректер дұрыс емес"})
+		return
 	}
-	http.Error(w, "Car not found", http.StatusNotFound)
+	if err := database.DB.Create(&car).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Көлікті қосу сәтсіз"})
+		return
+	}
+	c.JSON(http.StatusCreated, car)
 }
 
-// Машинаны өшіру
-func DeleteCar(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	id := params["id"]
-
-	for index, item := range cars {
-		if fmt.Sprintf("%d", item.ID) == id {
-			cars = append(cars[:index], cars[index+1:]...)
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode("Car deleted successfully")
-			return
-		}
+func UpdateCar(c *gin.Context) {
+	id := c.Param("id")
+	var car models.Car
+	if err := database.DB.First(&car, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Көлік табылмады"})
+		return
 	}
-	http.Error(w, "Car not found", http.StatusNotFound)
+	if err := c.ShouldBindJSON(&car); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Деректер дұрыс емес"})
+		return
+	}
+	database.DB.Save(&car)
+	c.JSON(http.StatusOK, car)
+}
+
+func DeleteCar(c *gin.Context) {
+	id := c.Param("id")
+	if err := database.DB.Delete(&models.Car{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Көлікті жою сәтсіз"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Көлік жойылды"})
 }
